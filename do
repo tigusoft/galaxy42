@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+
 function fail() {
 	echo "Error (in $0): " "$@"
 	exit 1
@@ -46,22 +47,47 @@ function usage {
 	usage_main
 }
 
+function platform_recognize {
+	uname -a # show info
+	uname -a | egrep '^CYGWIN' \
+		&& platform="cygwin" \
+		|| platform="posix"
+}
+
+function clean_previous_build {
+	make clean || { echo "(can not make clean - but this is probably normal at first run)" ; }
+	rm -rf CMakeCache.txt CMakeFiles/ || { echo "(can not remove cmake cache - but this is probably normal at first run)" ; }
+}
+
 echo ""
 echo "------------------------------------------"
 echo "The 'do' script - that builds this project"
 echo ""
 
-platform="posix"
-uname -a # show info
-uname -a | egrep '^CYGWIN' && platform="cygwin"
+platform_recognize
+echo "$platform"
+clean_previous_build
+
+# download external dependencies/submodules
+./download.sh || { echo "Downloads failed" ; exit 1 ; }
+
+for dir in depends/* ; do
+	count=$(find "$dir" | wc -l) ;
+	if ((count<2)) ; then
+		echo "Error: this submodule seems empty - I see just $count file(s)) - fix it: $dir"
+		exit 1
+	fi
+done
+
 
 if [[ "$platform" == "cygwin" ]]
 then
 
 	echo "PLATFORM - WINDOWS/CYGWIN ($platform)"
 
-	CC="i686-w64-mingw32-gcc.exe"
-	CXX="i686-w64-mingw32-g++.exe"
+	# attention: this compilers are available on 32-bit cygwin version!
+	export CC="i686-w64-mingw32-gcc.exe"
+	export CXX="i686-w64-mingw32-g++.exe"
 
 	cmake . || fail "Can not cmake (on Cygwin mode)"
 	make tunserver.elf || fail "Can not make (on Cygwin mode)"
@@ -104,15 +130,10 @@ echo "===================================================================="
 echo ""
 
 
-make clean || { echo "(can not make clean - but this is probably normal at first run)" ; }
-rm -rf CMakeCache.txt CMakeFiles/ || { echo "(can not remove cmake cache - but this is probably normal at first run)" ; }
-
-./download.sh || { echo "Downloads failed" ; exit 1 ; }
-
 COVERAGE="$COVERAGE" EXTLEVEL="$EXTLEVEL" ./build-extra-libs.sh || { echo "Building extra libraries failed" ; exit 1 ; }
 
 [ -r "toplevel" ] || { echo "Run this while being in the top-level directory; Can't find 'toplevel' in PWD=$PWD"; exit 1; }
-dir_base_of_source="./"
+dir_base_of_source="$(readlink -e ./)"
 if [[ $OSTYPE == "linux-gnu" ]]; then
 	source gettext.sh || { echo "Gettext is not installed, please install it." ; exit 1 ; }
 
@@ -160,7 +181,11 @@ if [[ "$BUILD_STATIC"  == "1" ]] ; then
 fi
 
 set -x
-cmake  .  \
+dir_build="$dir_base_of_source/build"
+echo "Will build into directory dir_build=$dir_build"
+mkdir -p $dir_build
+pushd $dir_build
+cmake  ..  \
 	-DBUILD_STATIC_TUNSERVER="$FLAG_STATIC" \
 	-DEXTLEVEL="$EXTLEVEL" -DCOVERAGE="$COVERAGE" \
 	${BUILD_SET_BOOST_ROOT:+"-DBOOST_ROOT=$BUILD_SET_BOOST_ROOT"} \
@@ -170,9 +195,13 @@ cmake  .  \
 set +x
 # the build type CMAKE_BUILD_TYPE is as set in CMakeLists.txt
 
-set -x
-make -j 2 || { echo "Error: the Make build failed - look above for any other warnings, and read FAQ section in the README.md" ; exit 1 ; }
-set +x
 
+set -x
+ln -s "$dir_base_of_source"/share share || echo "Link already exists"
+
+make -j 2 || { echo "Error: the Make build failed - look above for any other warnings, and read FAQ section in the README.md" ; exit 1 ; }
+
+set +x
+popd
 fi # platform posix
 

@@ -34,7 +34,7 @@
 
 #include <boost/numeric/conversion/cast.hpp>
 
-#include "c_tnetdbg.hpp"
+#include "tnetdbg.hpp"
 #include "strings_utils_simple.hpp"
 #include "mo_reader.hpp"
 
@@ -82,8 +82,17 @@ using std::invalid_argument;
 	#define DEBUG_SECRET_STR( X ) ( "[hidden-secret]" )
 #endif
 
+// PRETTY FUNCTION NAME - DEBUG
+#ifndef __PRETTY_FUNCTION__
+	#ifdef WIN32   //WINDOWS
+	#define __PRETTY_FUNCTION__   __FUNCTION__
+#else          //*NIX
+	#define __PRETTY_FUNCTION__   __func__
+	#endif
+#endif
+
 // ??? decide: XXX
-#include "c_tnetdbg.hpp"
+#include "tnetdbg.hpp"
 
 // --- TODO https://h.mantis.antinet.org/view.php?id=37 ---
 /***
@@ -143,12 +152,16 @@ std::string STR(const T & obj) {
 	return oss.str();
 }
 
-
+/// For exceptions that are not errors, but are expected
+/// alternative situation in program.
 class expected_exception : public std::exception {
 	public:
 		const char* what() const noexcept override;
 };
 
+/// Throw this if some element was not found, but this is normal situation.
+/// E.g. when public-key was not yet created at all (to differentiate
+/// from case where public-key was found but can not be loaded due to format errors etc)
 class expected_not_found : public stdplus::expected_exception {
 	public:
 		const char* what() const noexcept override;

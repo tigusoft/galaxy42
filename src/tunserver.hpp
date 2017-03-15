@@ -185,9 +185,9 @@ class c_tunserver : public c_galaxy_node {
 
 		/// @name Functions that execute a program action like creation of key, calculating signature, etc.
 		/// @{
-		void program_action_set_IDI(const string & keyname); ///< set configured IDI key (write the config to disk)
-		void program_action_gen_key(boost::program_options::variables_map & argm); ///< generate a key according to given options
-		std::string program_action_gen_key_simple(); ///< generates recommended simple key, returns name e.g. "IDI"
+		void program_action_set_IDI(const string & keyname); ///< set configured IDI key (write the config to disk) @deprecated
+		void program_action_gen_key(const boost::program_options::variables_map & argm); ///< generate a key according to given options @deprecated
+		std::string program_action_gen_key_simple(); ///< generates recommended simple key, returns name e.g. "IDI" @deprecated
 		/// @}
 
 		void set_my_name(const string & name); ///< set a nice name of this peer (shown in debug for example)
@@ -201,18 +201,26 @@ class c_tunserver : public c_galaxy_node {
 		void add_peer_append_pubkey(const t_peering_reference & peer_ref, unique_ptr<c_haship_pubkey> && pubkey);
 		void add_tunnel_to_pubkey(const c_haship_pubkey & pubkey);
 
-		void help_usage() const; ///< show help about usage of the program
-
 		typedef enum {
 			e_route_method_from_me=1, ///< I am the oryginal sender (try hard to send it)
 			e_route_method_if_direct_peer=2, ///< Send data only if if I know the direct peer (e.g. I just route it for someone else - in star protocol the center node)
 			e_route_method_default=3, ///< The default routing method
 		} t_route_method;
 
+		typedef enum {
+			eIPv6_TCP=6,
+			eIPv6_UDP=17,
+			eIPv6_ICMP=58
+		} t_ipv6_protocol_type;
+
 		void nodep2p_foreach_cmd(c_protocol::t_proto_cmd cmd, string_as_bin data) override;
 		const c_peering & get_peer_with_hip( c_haship_addr addr , bool require_pubkey ) override;
 		int get_my_port() const;
 		std::string get_my_reference() const;
+		bool check_ip_protocol(const std::string& data) const;
+		int get_ip_protocol_number(const std::string& data) const;
+		void enable_remove_peers();
+		void set_remove_peer_tometout(unsigned int timeout_seconds);
 
 	protected:
 		void prepare_socket(); ///< make sure that the lower level members of handling the socket are ready to run
@@ -274,7 +282,7 @@ class c_tunserver : public c_galaxy_node {
 		fd_set m_fd_set_data; ///< select events e.g. wait for UDP peering or TUN input
 
 		typedef std::map< c_haship_addr, unique_ptr<c_peering> > t_peers_by_haship; ///< peers (we always know their IPv6 - we assume here), indexed by their hash-ip
-		t_peers_by_haship m_peer; ///< my peers, indexed by their hash-ip
+		t_peers_by_haship m_peer; ///< my peers, indexed by their hash-ip. MUST BE used only protected by m_peer_mutex!
 		mutable std::mutex m_peer_mutex;
 
 		t_peers_by_haship m_nodes; ///< all the nodes that I know about to some degree
@@ -286,6 +294,9 @@ class c_tunserver : public c_galaxy_node {
 		c_haship_addr m_my_hip; ///< my HIP that results from m_my_IDC, already cached in this format
 
 		std::map< c_haship_addr, unique_ptr<c_tunnel_use> > m_tunnel; ///< my crypto tunnels
+
+		bool enable_remove=false; // if false then just count, do not remove
+		std::chrono::seconds peer_timeout;
 
 //		c_haship_pubkey m_haship_pubkey; ///< pubkey of my IP
 //		c_haship_addr m_haship_addr; ///< my haship addres
@@ -325,6 +336,7 @@ class c_tunserver : public c_galaxy_node {
 		std::string rpc_ping(const std::string &input_json);
 		std::string rpc_peer_list(const std::string &input_json);
 		int m_port;
+		std::vector<t_ipv6_protocol_type> m_supported_ip_protocols;
 };
 
 // ------------------------------------------------------------------

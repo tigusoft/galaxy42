@@ -9,12 +9,14 @@
 
 // ====================================================================
 
-
 enum t_debug_style {
 	e_debug_style_object=0,
 	e_debug_style_short_devel=1,
 	e_debug_style_crypto_devel=2,
 	e_debug_style_big=2,
+
+	e_debug_style_buf=100,
+
 };
 
 struct string_as_bin;
@@ -32,11 +34,10 @@ std::ostream& operator<<(std::ostream &ostr, const string_as_hex &obj);
 
 bool operator==( const string_as_hex &a, const string_as_hex &b);
 
-unsigned char hexchar2int(char c); // 'f' -> 15
 unsigned char int2hexchar(unsigned char i); // 15 -> 'f'
+unsigned char hexchar2int(char c); // 'f' -> 15
 
 unsigned char doublehexchar2int(string s); // "fd" -> 253
-
 
 struct string_as_bin {
 	std::string bytes;
@@ -70,14 +71,13 @@ struct string_as_bin {
 
 bool operator<( const string_as_bin &a, const string_as_bin &b);
 
-
 std::string debug_simple_hash(const std::string & str);
 
 std::string chardbg(char c); ///< Prints one character in "debugging" format, e.g. 0x0, or 0x20=32, etc.
 
 struct string_as_dbg {
+	std::string dbg; ///< this string is already nicelly formatted for debug output e.g. "(3){a,l,a,0x13}" or "(3){1,2,3}"
 	public:
-		std::string dbg; ///< this string is already nicelly formatted for debug output e.g. "(3){a,l,a,0x13}" or "(3){1,2,3}"
 
 		string_as_dbg()=default;
 		string_as_dbg(const string_as_bin & bin, t_debug_style style=e_debug_style_short_devel); ///< from our binary data string
@@ -88,7 +88,7 @@ struct string_as_dbg {
 		explicit string_as_dbg( T it_begin , T it_end, t_debug_style style=e_debug_style_short_devel )
 		{
 			std::ostringstream oss;
-			oss << std::distance(it_begin, it_end) << ':';
+			oss << ::std::setw(6) << std::distance(it_begin, it_end) << ':';
 			if (style==e_debug_style_crypto_devel) oss << "{hash=0x" << debug_simple_hash(std::string(it_begin, it_end)) << "}";
 			oss<<'[';
 			bool first=1;
@@ -96,19 +96,20 @@ struct string_as_dbg {
 			size_t size1 = 8;
 			size_t size2 = 4;
 			if (style==e_debug_style_big) { size1=8192; size2=128; }
+			if (style==e_debug_style_buf) { size1=8192; size2=128; }
 			// TODO assert/review pointer operations
 			if (size <= size1+size2) {
-				for (auto it = it_begin ; it!=it_end ; ++it) { if (!first) oss << ','; print(oss,*it);  first=0;  }
+				for (auto it = it_begin ; it!=it_end ; ++it) { if (!first) oss << ','; print(oss,*it,style);  first=0;  }
 			} else {
 				{
 					auto b = it_begin, e = std::min(it_end, it_begin+size1);
-					for (auto it = b ; it!=e ; ++it) { if (!first) oss << ','; print(oss,*it);  first=0;  }
+					for (auto it = b ; it!=e ; ++it) { if (!first) oss << ','; print(oss,*it,style);  first=0;  }
 				}
 				oss<<" ... ";
 				first=1;
 				{
 					auto b = std::max(it_begin, it_end - size2), e = it_end;
-					for (auto it = b ; it!=e ; ++it) { if (!first) oss << ','; print(oss,*it);  first=0;  }
+					for (auto it = b ; it!=e ; ++it) { if (!first) oss << ','; print(oss,*it,style);  first=0;  }
 				}
 			}
 			oss<<']';
@@ -125,13 +126,11 @@ struct string_as_dbg {
 
 		template<class T>	void print(std::ostream & os, const T & v) { os<<v; }
 
-
 	public: // for chardbg.  TODO move to class & make friend class
 		void print(std::ostream & os, unsigned char v, t_debug_style style=e_debug_style_short_devel );
 		void print(std::ostream & os, signed char v, t_debug_style style=e_debug_style_short_devel );
 		void print(std::ostream & os, char v, t_debug_style style=e_debug_style_short_devel );
 };
-
 
 // for debug mainly
 template<class T, std::size_t N>
@@ -175,7 +174,7 @@ t_debug_style style_v=e_debug_style_object)
 	UNUSED(data); UNUSED(style_v); UNUSED(style_k);
 	for (const auto & pair : data) {
 
-// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream 
+// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream
 
 //		oss << "[" << debug_to_oss(oss, pair.first, style_k) << "]";
 //		oss << " -> ";
@@ -190,7 +189,7 @@ std::string to_debug(const std::vector<TV> & data, t_debug_style style_v=e_debug
 	std::ostringstream oss;
 	UNUSED(data); UNUSED(style_v);
 //	for (const auto & obj : data) {
-// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream 
+// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream
 //		oss << "[" << debug_to_oss(oss, obj, style_v) << "]";
 //	}
 	return oss.str();
@@ -219,6 +218,6 @@ template <typename T> std::string to_debug_b(const T * ptr)
 template <typename T> std::string to_debug_b(const std::unique_ptr<T> & ptr)
 {	return to_debug(ptr,e_debug_style_big); }
 
+bool is_ascii_normal(const std::string str);
+
 #endif
-
-

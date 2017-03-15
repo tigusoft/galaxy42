@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/yedino/galaxy42.svg?branch=master)](https://travis-ci.org/yedino/galaxy42)
 [![Coverage Status](https://coveralls.io/repos/github/yedino/galaxy42/badge.svg?branch=master)](https://coveralls.io/github/yedino/galaxy42?branch=master)
-![Pre-pre-alpha](http://p.meshnet.pl/p/tgx.svg)
+![Pre-alpha](http://p.meshnet.pl/p/tgx.svg)
 [![IRC #antinet icann.irc.meshnet.pl](http://p.meshnet.pl/p/tgh.svg)](http://h.forum.meshnet.pl/viewtopic.php?f=14&p=144#p144)
 
 * * *
@@ -52,21 +52,13 @@ For more details, including correct naming and **glossary**, and advanced techni
 
 ## Release notes
 
-### Version v0.3.1
+### Version v0.3.2 (pre-alpha) Now in progress
 
-* For users of official binary distribution:
-  * On Windows, you still need to manually get and install a TUN/TAP driver (e.g. from OpenVPN, it's open source).
-  * Connections could be now authenticated, how ever this probably still has bugs, do not use in production.
-  * Connections are now more realiable, they should keep working when your peer changes IP address (unless you both change it around same time).
-  * You can try to use this software to build small mesh networks (e.g. < 1000 nodes, and max distance < 4 hops), but:
-    * Only with trusted peers (no protection against any DoS).
-    * It is not fully supported to have 2 nodes running behind one NAT (seen by other nodes as same IP), try connecting them to eachother via LAN too.
-* For people building from source:
-  * Our builds are now using CI from also Jenkins, in addition to Travis. We are doing it, but you can too (see doc/ folder).
-  * Building Gitian for Windows finally should be deterministic (fixed NSIS makensis tool date) even if you will reproduce the builds at other date (day).
-* Misc:
-  * You can now use ./do also on Cygwin.
-  * Merry Christmas 2016 :-) !
+* Rewrite (--newloop)
+  * Run program with --newloop to get the refactored behaviour
+  * First, **all existing functions are disabled** in this mode --newloop
+  * --newloop option itself is recognized
+  * --peer option can be given but is ignored
 
 Older release notes are in [Changelog.md](Changelog.md).
 
@@ -175,7 +167,7 @@ Advanced topics - for developers and for future.
 Galaxy42 - Small experimental network in category of Meshnet, VPN, IP-hash.
 
 Title: Galaxy42
-Status: Experimental, pre-beta, NOT reviewed, NOT secure.
+Status: Experimental, pre-alpha, NOT reviewed, NOT secure.
 
 Do not use this network for any purpose at all (yet!) it contains
 bugs, probably including vulns. Could be ok to try it in a VM.

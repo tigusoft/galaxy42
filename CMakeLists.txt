@@ -59,7 +59,7 @@ if (MSVC)
 	endif()
 endif()
 
-if(WIN32)
+if(WIN32 OR CYGWIN)
   add_definitions(-DUNICODE)
   add_definitions(-D_UNICODE)
   add_definitions(-DWINVER=0x0601)
@@ -72,7 +72,7 @@ endif()
 set (Boost_DEBUG ON)
 set (Boost_USE_MULTITHREADED ON)
 if (BUILD_STATIC_TUNSERVER)
-	set (Boost_USE_STATIC_RUBTIME ON)
+	set (Boost_USE_STATIC_RUNTIME ON)
 	set (Boost_USE_STATIC_LIBS ON)
 	set (Boost_USE_DEBUG_RUNTIME OFF)
 	set (sodium_USE_STATIC_LIBS ON)
@@ -86,7 +86,7 @@ if (CYGWIN)
 	set(BOOST_LOCALE_LINK_LIB boost_locale-mt boost_thread-mt boost_atomic-mt)
 	set(BOOST_THREAD_LINK_LIB boost_thread-mt boost_atomic-mt)
 else()
-	set(BOOST_LOCALE_LIB_SEARCH locale)
+	set(BOOST_LOCALE_LIB_SEARCH)
 	set(BOOST_THREAD_LIB_SEARCH thread atomic)
 endif()
 
@@ -118,7 +118,11 @@ if (MINGW)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cotire/CMake")
+include(cotire)
+
 find_package(Sodium)
+link_directories(/home/ubuntu/build/libsodium/libsodium-osx/lib/)
 
 if (NOT SODIUM_FOUND)
 message("\nSODIUM NOT FOUND!")
@@ -253,6 +257,9 @@ link_directories(depends/jsoncpp/src/lib_json)
 #add local nlohmann json
 include_directories(depends/json/src)
 
+#add local CTPL
+include_directories(depends/CTPL)
+
 #add local local lib sodiumpp
 set (SODIUMPP_STATIC 1)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/depends/sodiumpp ${CMAKE_CURRENT_BINARY_DIR}/sodiumpp)
@@ -339,11 +346,11 @@ include_directories( src/ )
 
 file(GLOB SOURCES_GROUP_CRYPTO src/crypto/*.cpp)
 
+file(GLOB SOURCES_GROUP_TUNSERVER src/*.cpp src/crypto-sodium/*.cpp src/httpdbg/peering_stats.cpp src/utils/* src/cable/* src/cable/*/* src/tuntap/base/* src/tuntap/linux/* )
+
 if(HTTP_DEBUGGER)
-    add_definitions(-DHTTP_DBG)
-    file(GLOB SOURCES_GROUP_TUNSERVER src/*.cpp src/crypto-sodium/*.cpp src/httpdbg/*.cpp)
-else()
-    file(GLOB SOURCES_GROUP_TUNSERVER src/*.cpp src/crypto-sodium/*.cpp src/httpdbg/peering_stats.cpp)
+	add_definitions(-DHTTP_DBG)
+	list(APPEND SOURCES_GROUP_TUNSERVER ${CMAKE_CURRENT_SOURCE_DIR}/src/httpdbg/httpdbg-server.cpp)
 endif()
 
 list(REMOVE_ITEM SOURCES_GROUP_TUNSERVER ${CMAKE_CURRENT_SOURCE_DIR}/src/g42-main.cpp)
@@ -380,7 +387,8 @@ if(NOT MSVC)
 
 		elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 			message("Release build")
-			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O2 -DNDEBUG -DRELEASEMODE")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O2")
+			# -DNDEBUG -DRELEASEMODE")
 	else()
 		message("bad CMAKE_BUILD_TYPE flag")
 		message("usage is: cmake [Fast/Debug/Release] .")
@@ -392,6 +400,7 @@ include_directories(../antinet/src/antinet_sim/)
 # add_executable(ipclient.elf ipclient.cpp counter.cpp)
 # add_executable(ipserver.elf ipserver.cpp)
 add_executable(tunserver.elf src/g42-main.cpp )
+cotire(tunserver.elf)
 
 if(WIN32 OR CYGWIN OR MINGW)
 	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/contrib/windows-service-wrapper)
@@ -416,6 +425,7 @@ message("Libs for crypto are: (as list) '${LIBS_OPTIONAL_CRYPTO_clean}'")
 #	generate_config.cpp text_ui.cpp c_json_load.cpp c_json_genconf.cpp galaxy_debug.cpp
 #	rpc/rpc.cpp rpc/c_connection_base.cpp rpc/c_tcp_asio_node.cpp ${SOURCES_GROUP_CRYPTO})
 add_library(tunserver ${SOURCES_GROUP_TUNSERVER} ${SOURCES_GROUP_CRYPTO} ${SOURCES_GROUP_RPC})
+cotire(tunserver)
 
 if(MINGW)
 	set(MINGW_LIBRARIES ws2_32 iphlpapi mswsock)
@@ -431,7 +441,6 @@ endif()
 
 target_link_libraries(tunserver.elf tunserver ${Boost_LIBRARIES} ${BOOST_LOCALE_LINK_LIB} ${BOOST_THREAD_LINK_LIB}
 	${PTHREAD_LIB} sodiumpp ${SODIUM_LIB} jsoncpp_lib_static ${LIBS_OPTIONAL_CRYPTO_clean} ${MINGW_LIBRARIES} ${MSVC_LIRARIES})
-
 #tests
 file(GLOB TEST_SOURCES "src/test/*.cpp")
 list(SORT TEST_SOURCES)
@@ -468,7 +477,7 @@ message(STATUS "C++ link flags:  ${CMAKE_CXX_LINK_FLAGS}")
 
 if(NOT MINGW AND NOT WIN32)
 add_custom_target(run
-		COMMAND ./tunserver.sh
+		COMMAND "${CMAKE_SOURCE_DIR}/tunserver.sh"
 		DEPENDS ./tunserver.elf
 		DEPENDS test-debug.elf
 		WORKING_DIRECTORY ./)
@@ -490,9 +499,14 @@ add_custom_command(
 add_custom_command(
 	TARGET ipclient.elf ipserver.elf tunserver.elf
 	POST_BUILD
-	COMMAND share/script/use-setcap tunserver.elf || echo "Can not set rights on binary, ignoring."
-	COMMAND share/script/show-source-help.sh
-	COMMAND share/script/show-program-help.sh
+	COMMAND "${CMAKE_SOURCE_DIR}/share/script/use-setcap" tunserver.elf || echo "Can not set rights on binary, ignoring."
+	WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_custom_target(
+	TARGET ipclient.elf ipserver.elf tunserver.elf
+	POST_BUILD
+	COMMAND "${CMAKE_SOURCE_DIR}/share/script/show-source-help.sh"
+	COMMAND "${CMAKE_SOURCE_DIR}/share/script/show-program-help.sh"
 	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 endif()

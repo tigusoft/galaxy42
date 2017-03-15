@@ -1,6 +1,5 @@
 // Copyrighted (C) 2015-2016 Antinet.org team, see file LICENCE-by-Antinet.txt
 
-
 #include "strings_utils.hpp"
 
 #include "crypto/crypto_basic.hpp" // for hashing function
@@ -42,7 +41,6 @@ bool operator==( const string_as_hex &a, const string_as_hex &b) {
 
 // ==================================================================
 
-
 unsigned char int2hexchar(unsigned char i) {
 	if (i<=9) return '0'+i;
 	if (i<=15) return 'a'+(i-10);
@@ -50,15 +48,15 @@ unsigned char int2hexchar(unsigned char i) {
 }
 
 unsigned char hexchar2int(char c) {
-	if ((c>='0')&&(c<='9')) return c-'0';
-	if ((c>='a')&&(c<='f')) return c-'a' +10;
+	if ((c>='0')&&(c<='9')) return static_cast<unsigned char>(c-'0');
+	if ((c>='a')&&(c<='f')) return static_cast<unsigned char>(c-'a' +10);
 	_throw_error( std::invalid_argument(  string("Invalid character (")+string(1,c)+string(") in parsing hex number")  ) );
 }
 
 unsigned char doublehexchar2int(string s) {
 	if (s.size()!=2) _throw_error( std::invalid_argument("Invalid double-hex string: '"+s+"'") );
-	unsigned char h = s.at(0);
-	unsigned char l = s.at(1);
+	char h = s.at(0);
+	char l = s.at(1);
 	return hexchar2int(h)*16 + hexchar2int(l);
 }
 
@@ -135,7 +133,6 @@ bool string_as_bin::operator!=(const string_as_bin &rhs) const {
 	return this->bytes != rhs.bytes;
 }
 
-
 bool operator<( const string_as_bin &a, const string_as_bin &b) {
 	return a.bytes < b.bytes;
 }
@@ -162,31 +159,32 @@ string_as_dbg::string_as_dbg(const char * data, size_t data_size, t_debug_style 
 
 void string_as_dbg::print(std::ostream & os, char v, t_debug_style style)
 {
-	UNUSED(style); // TODONOW TODO
-	unsigned char uc = static_cast<unsigned char>(v);
-	signed char widthH=-1; // -1 is normal print, otherwise the width of hex
-	signed char widthD; // width of dec
-	if (uc<=9) {
-		os << "0x" << static_cast<int>(uc);
+	if (style == e_debug_style_buf) {
+		unsigned char uc = static_cast<unsigned char>(v);
+		if ((uc>=32)&&(uc<=126)) os << std::setfill(' ') << std::setw(2) << uc; // printable
+		else os << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << static_cast<int>(uc);
+	} else {
+		unsigned char uc = static_cast<unsigned char>(v);
+		signed char widthH=-1; // -1 is normal print, otherwise the width of hex
+		signed char widthD; // width of dec
+		if (uc<=9) os << "0x" << static_cast<int>(uc);
+		else
+		{
+			if (uc<32) { widthH=2; widthD=2; }
+			if (uc>127) { widthH=2; widthD=3; }
+			if (widthH!=-1) { // escape it
+				os << "0x" << std::hex << std::setfill('0') << std::setw(widthH) << std::uppercase << static_cast<int>(uc)
+					 << '=' << std::dec << std::setfill('0') << std::setw(widthD) << static_cast<int>(uc);
+			}
+			else os<<v; // normal
+		}
 	}
-	else
-	{
-	if (uc<32) { widthH=2; widthD=2; }
-	if (uc>127) { widthH=2; widthD=3; }
-	if (widthH!=-1) { // escape it
-		os << "0x" << std::hex << std::setfill('0') << std::setw(widthH) << std::uppercase << static_cast<int>(uc)
-		   << '=' << std::dec << std::setfill('0') << std::setw(widthD) << static_cast<int>(uc);
-	}
-	else os<<v; // normal
-	}
-	//
 }
 void string_as_dbg::print(std::ostream & os, signed char v, t_debug_style style)
 { print(os, static_cast<char>(v), style); }
 
 void string_as_dbg::print(std::ostream & os, unsigned char v, t_debug_style style)
 { print(os, static_cast<char>(v), style); }
-
 
 string_as_dbg::operator const std::string & () const {
 	return this->dbg;
@@ -207,7 +205,6 @@ std::string to_debug(const string_as_bin & data, t_debug_style style) {
 	return to_debug( data.bytes , style );
 }
 
-
 std::string to_debug_b(const std::string & data)
 	{ return  to_debug(data,e_debug_style_big); }
 std::string to_debug_b(const string_as_bin & data)
@@ -220,8 +217,6 @@ std::string debug_simple_hash(const std::string & str) {
 	string_as_bin bin( s );
 	return  string_as_hex( bin ).get();
 }
-
-
 
 std::ostream & operator<<(std::ostream & os, boost::any & obj) {
 	using namespace boost;
@@ -236,3 +231,10 @@ std::ostream & operator<<(std::ostream & os, boost::any & obj) {
 	return os;
 }
 
+bool is_ascii_normal(const std::string str){
+	auto it = find_if(str.begin(), str.end(), [](auto x){return !isprint(x);	} );
+	if(it == str.end())
+		return true;
+	else
+		return false;
+}

@@ -2,5 +2,5 @@
 .PHONY: run
 
 run:
-	( cd ../.. && make && ./test-debug.elf --gtest_filter=haship*.* )
+	( cd ../../build && make && ./test-debug.elf --gtest_filter=*cable*.* )
 
