@@ -1,4 +1,4 @@
-// Copyrighted (C) 2015-2016 Antinet.org team, see file LICENCE-by-Antinet.txt
+// Copyrighted (C) 2015-2017 Antinet.org team, see file LICENCE-by-Antinet.txt
 
 #ifndef include_strings_utils_hpp
 #define include_strings_utils_hpp
@@ -7,18 +7,9 @@
 
 #include <boost/any.hpp>
 
-// ====================================================================
+#include <strings_utils_base.hpp>
 
-
-enum t_debug_style {
-	e_debug_style_object=0,
-	e_debug_style_short_devel=1,
-	e_debug_style_crypto_devel=2,
-	e_debug_style_big=2,
-
-	e_debug_style_buf=100,
-
-};
+// -------------------------------------------------------------------
 
 struct string_as_bin;
 
@@ -38,8 +29,7 @@ bool operator==( const string_as_hex &a, const string_as_hex &b);
 unsigned char int2hexchar(unsigned char i); // 15 -> 'f'
 unsigned char hexchar2int(char c); // 'f' -> 15
 
-unsigned char doublehexchar2int(string s); // "fd" -> 253
-
+unsigned char doublehexchar2int(std::string s); // "fd" -> 253
 
 struct string_as_bin {
 	std::string bytes;
@@ -72,7 +62,6 @@ struct string_as_bin {
 };
 
 bool operator<( const string_as_bin &a, const string_as_bin &b);
-
 
 std::string debug_simple_hash(const std::string & str);
 
@@ -129,13 +118,11 @@ struct string_as_dbg {
 
 		template<class T>	void print(std::ostream & os, const T & v) { os<<v; }
 
-
 	public: // for chardbg.  TODO move to class & make friend class
 		void print(std::ostream & os, unsigned char v, t_debug_style style=e_debug_style_short_devel );
 		void print(std::ostream & os, signed char v, t_debug_style style=e_debug_style_short_devel );
 		void print(std::ostream & os, char v, t_debug_style style=e_debug_style_short_devel );
 };
-
 
 // for debug mainly
 template<class T, std::size_t N>
@@ -172,18 +159,17 @@ std::ostream & debug_to_oss(std::ostream & os, const T & data, t_debug_style sty
 std::ostream & operator<<(std::ostream & os, boost::any & obj);
 
 template<typename TK, typename TV>
-std::string to_debug(const std::map<TK,TV> & data, t_debug_style style_k=e_debug_style_object,
-t_debug_style style_v=e_debug_style_object)
-{
+std::string to_debug(const std::map<TK,TV> & data,
+                     t_debug_style style_k=e_debug_style_object,
+                     t_debug_style style_v=e_debug_style_object) {
+
 	std::ostringstream oss;
-	UNUSED(data); UNUSED(style_v); UNUSED(style_k);
 	for (const auto & pair : data) {
-
-// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream
-
-//		oss << "[" << debug_to_oss(oss, pair.first, style_k) << "]";
-//		oss << " -> ";
-//		oss << "[" << debug_to_oss(oss, pair.second, style_v) << "]";
+		oss << "[" ;
+		debug_to_oss(oss, pair.first, style_k);
+		oss << "] -> [";
+		debug_to_oss(oss, pair.second, style_v);
+		oss << "]";
 	}
 	return oss.str();
 }
@@ -192,11 +178,11 @@ template<typename TV>
 std::string to_debug(const std::vector<TV> & data, t_debug_style style_v=e_debug_style_object)
 {
 	std::ostringstream oss;
-	UNUSED(data); UNUSED(style_v);
-//	for (const auto & obj : data) {
-// TODO when we do bug#m153.  debug_to_oss makes no sense to connect like this - returns ostream
-//		oss << "[" << debug_to_oss(oss, obj, style_v) << "]";
-//	}
+	for (const auto & obj : data) {
+		oss << "[";
+		debug_to_oss(oss, obj, style_v);
+		oss << "]";
+	}
 	return oss.str();
 }
 
@@ -223,6 +209,9 @@ template <typename T> std::string to_debug_b(const T * ptr)
 template <typename T> std::string to_debug_b(const std::unique_ptr<T> & ptr)
 {	return to_debug(ptr,e_debug_style_big); }
 
+bool is_ascii_normal(const std::string str);
+
+/// Transform c-style array to wstring (useful for windows api functions when UNICODE is set)
+std::wstring cstring_to_wstring(const char *cstr);
+
 #endif
-
-

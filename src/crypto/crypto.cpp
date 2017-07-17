@@ -161,7 +161,7 @@ std::string c_stream::unbox(const std::string & msg, t_crypto_nonce nonce, bool 
 			<<" text " << to_debug(ret) << " <--- " << to_debug(msg)
 			<<" K=" << to_debug_locked( cb.get_secret_PRIVATE_key()));
 		return ret;
-	} catch(std::exception &e) {
+	} catch(const std::exception &e) {
 		_erro("Crypto failed to unbox: " << e.what() << " during: "
 			<< "Decrypt N="<<show_nice_nonce(N)
 			<<" text " << "???" << " <--- " << to_debug(msg)
@@ -311,8 +311,10 @@ c_crypto_system::t_symkey c_stream::calculate_KCT
 
 	for (size_t sys=0; sys<self.m_pub.get_count_of_systems(); ++sys) { // all key crypto systems
 		// for given crypto system:
-
-		auto sys_enum = int_to_enum<t_crypto_system_type>(sys); // enum of this crypto system
+		t_crypto_system_type sys_enum;
+		try {
+			sys_enum = int_to_enum<t_crypto_system_type>(sys,true); // enum of this crypto system
+		} catch(const expected_not_found &) { continue ; } // not assigned enum type, skip
 
 		auto key_count_a = self_pub.get_count_keys_in_system(sys_enum);
 		auto key_count_b = them_pub.get_count_keys_in_system(sys_enum);
@@ -523,7 +525,7 @@ c_crypto_tunnel::c_crypto_tunnel(const c_multikeys_PAIR & self, const c_multikey
 	_note("Bob? Creating the crypto tunnel (we are respondent)");
 	m_stream_crypto_ab = make_unique<c_stream>(false, nicename+"-CTab");
 	UsePtr(m_stream_crypto_ab).exchange_done( self, them , packetstart ); // exchange for IDC is ready
-	_mark("Ok exchange for AB is finalized");
+	_info("Ok exchange for AB is finalized");
 
 	_note("Bob? Ok created our IDe...");
 	this->create_IDe(); // here, because we counted keys from AB above
@@ -542,7 +544,7 @@ c_crypto_tunnel::c_crypto_tunnel(const c_multikeys_PAIR & self, const c_multikey
 
 	m_stream_crypto_final->set_packetstart_IDe_from( * m_IDe ); // finall stream will send our IDe in packetstarter
 
-	_mark("Bob? created packet starter for CTe...");
+	_dbg4("Bob? created packet starter for CTe...");
 //	_mark("Bob? created packet starter for CTe : " << to_debug((m_stream_crypto_final)->generate_packetstart()));
 	_note("Bob? Creating the crypto tunnel (we are respondent) - DONE");
 }
@@ -612,14 +614,14 @@ std::string c_crypto_tunnel::unbox_ab(const std::string & msg, t_crypto_nonce no
 // : c_stream(IDC_self, IDC_them, rand_ntru_data, std::vector<std::string>()) // TODOdel
 
 void c_crypto_tunnel::create_IDe() {
-	_mark("Creating IDe");
+	_dbg3("Creating IDe");
 	if (m_IDe) _throw_error( std::runtime_error("Tried to create IDe again, on a CT that already has one created.") );
 	//m_IDe = make_unique<c_multikeys_PAIR>();
 	//m_IDe->generate( UsePtr(m_stream_crypto_ab).get_cryptolists_count_for_KCTf() );
 	m_IDe = UsePtr( m_stream_crypto_ab ).create_IDe( true );
 	_info("My IDe:");
 	m_IDe->debug();
-	_mark("Creating IDe - DONE");
+	_dbg2("Creating IDe - DONE");
 }
 
 

@@ -9,15 +9,10 @@
 #include <chrono>
 
 #include "error_subtype.hpp"
+#include "syserror_use.hpp"
 
-
+/// @thread
 std::string errno_to_string(int errno_copy); ///< Convert errno from C-lib into a string. Thread-safe function.
-
-
-class tuntap_error : public runtime_error_subtype {};
-class tuntap_error_devtun : public tuntap_error {};
-class tuntap_error_ip     : public tuntap_error {};
-class tuntap_error_mtu    : public tuntap_error {};
 
 /**
  * @brief The c_tun_device class
@@ -82,6 +77,7 @@ class c_tun_device_linux final : public c_tun_device {
 
 #include "c_tun_device.hpp"
 #include "c_ndp.hpp"
+#include "tuntap/windows/c_tuntap_windows.hpp"
 #include <array>
 #include <boost/asio.hpp>
 #include <ifdef.h>
@@ -89,7 +85,7 @@ class c_tun_device_linux final : public c_tun_device {
 #include <windows.h>
 #include <vector>
 
-class c_tun_device_windows final : public c_tun_device {
+class c_tun_device_windows final : public c_tun_device, c_is_user_admin {
 	//friend class c_ndp;
 public:
   friend class c_event_manager_asio; // for io_service etc?

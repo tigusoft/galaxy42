@@ -1,5 +1,6 @@
 
 #include "the_program_tunserver.hpp"
+#include <platform.hpp>
 #include "libs1.hpp"
 
 #include "project.hpp"
@@ -21,8 +22,8 @@
 #include "httpdbg/httpdbg-server.hpp"
 #endif
 
-
 void c_the_program_tunserver::options_create_desc() {
+	PROGRAM_SECTION_TITLE;
 		namespace po = boost::program_options;
 		unsigned line_length = 120;
 
@@ -32,10 +33,25 @@ void c_the_program_tunserver::options_create_desc() {
 		auto & desc = m_boostPO_desc;
 		desc->add_options()
                     ("help", mo_file_reader::gettext("L_what_help_do").c_str())
+                    ("helptopic", po::value<string>(), mo_file_reader::gettext("L_what_help_do").c_str())
 
                     ("h", mo_file_reader::gettext("L_what_h_do").c_str())
 
                     ("debug", mo_file_reader::gettext("L_what_debug_do").c_str())
+
+                    ("insecure-cap", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (do not modify/drop CAP/capability)").c_str())
+
+                    ("special-warn1", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (show a _warn warning - use this in newloop; test is done after dropping CAP/capability)").c_str())
+                    ("special-ubsan1", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (to test UBSAN: execute an UB signed overflow - use this in newloop; test is done after dropping CAP/capability)").c_str())
+                    ("special-tsan1", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (to test TSAN: execute an concurent UB - use this in newloop; test is done after dropping CAP/capability)").c_str())
+                    ("special-memcheck1", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (to test valgrind/memcheck: execute an invalid memory access - use this in newloop; test is done after dropping CAP/capability)").c_str())
+                    ("special-memcheck2", po::value<bool>()->default_value(false), (mo_file_reader::gettext("L_options_insecure-ADVANCED")
+											+ " (like memcheck1)").c_str())
 
                     ("d", mo_file_reader::gettext("L_what_d_do").c_str())
 
@@ -63,7 +79,7 @@ void c_the_program_tunserver::options_create_desc() {
             #endif
                         ("net-hello-interval", po::value<int>()->default_value(3), mo_file_reader::gettext("L_what_netHelloInterval_do").c_str())
                         ("port", po::value<int>()->default_value(9042), mo_file_reader::gettext("L_port_do").c_str())
-                        ("rpc-port", po::value<int>()->default_value(9043), mo_file_reader::gettext("L_rpcPort_do").c_str())
+                        ("rpc-port", po::value<int>()->default_value(42000), mo_file_reader::gettext("L_rpcPort_do").c_str())
                     ("remove-peers", po::value<bool>()->default_value(false), mo_file_reader::gettext("L_remove_peers_do").c_str())
                     ("remove-peers-timeout", po::value<unsigned int>()->default_value(30), mo_file_reader::gettext("L_remove_peers_timeout_do").c_str())
 
@@ -150,6 +166,12 @@ void c_the_program_tunserver::options_create_desc() {
 
 
 void c_the_program_tunserver::options_multioptions() {
+	PROGRAM_SECTION_TITLE;
+	// option help is handled elsewhere
+
+	const auto & argm = m_argm;
+	UNUSED(argm);
+
 			#if EXTLEVEL_IS_PREVIEW
 			_info("BoostPO Will parse demo/devel options");
 
@@ -187,22 +209,41 @@ void c_the_program_tunserver::options_multioptions() {
 			#endif
 }
 
-std::tuple<bool,int> c_the_program_tunserver::options_commands_run() {
+std::tuple<bool,int> c_the_program_tunserver::base_options_commands_run() {
+	const auto & argm = m_argm;
+	if (argm.count("help")) { // usage
+		_fact( *m_boostPO_desc );
+		_fact( std::endl << project_version_info() );
+		return std::tuple<bool,int>(true,0);
+	}
 	return std::tuple<bool,int>(false,0);
 }
 
 int c_the_program_tunserver::main_execution() {
+	PROGRAM_SECTION_TITLE;
+	_mark("Main execution of the old-loop");
+
+	_warn("Remember, that this old-loop code is NOT secured as new-loop code, e.g. is not droping CAP/root privileges!");
+	{ using namespace std::chrono_literals;	std::this_thread::sleep_for(1s); }
+	// ^ sleep to let user see this message clearly.
+
 		try { // try parsing
 			const auto & argm = m_argm;
 
 			_check_user(argm.count("port") && argm.count("rpc-port"));
-			m_myserver_ptr = std::make_unique<c_tunserver>(argm.at("port").as<int>(), argm.at("rpc-port").as<int>());
+			_fact("Will create a server");
+			// *** creating the server object ***
+			m_myserver_ptr = std::make_unique<c_tunserver>(
+				argm.at("port").as<int>(),
+				argm.at("rpc-port").as<int>(),
+				argm
+			);
+
 			assert(m_myserver_ptr);
 			auto& myserver = * m_myserver_ptr;
 			myserver.set_desc(m_boostPO_desc);
 
-			_note("After devel/demo BoostPO code");
-
+			_clue("After devel/demo BoostPO code");
 
 			// --- debug level for main program ---
 			bool is_debug=false;
@@ -214,11 +255,6 @@ int c_the_program_tunserver::main_execution() {
 			if (argm.count("quiet") || argm.count("q")) g_dbg_level_set(200,"For quiet program run", true);
 			_note("BoostPO after parsing debug");
 
-			if (argm.count("help")) { // usage
-				_fact( *m_boostPO_desc );
-				_fact( std::endl << project_version_info() );
-				return 0;
-			}
 
 			#if EXTLEVEL_IS_PREVIEW
 			if (argm.count("set-IDI")) {
@@ -429,6 +465,9 @@ int c_the_program_tunserver::main_execution() {
 			// end of options
 			// ------------------------------------------------------------------
 
+
+// ------------------------------------------------------------------
+// deprecated - now in newloop new galaxysrv
 			_info("Configuring my own reference (keys):");
 
 			bool have_keys_configured=false;
@@ -462,7 +501,7 @@ int c_the_program_tunserver::main_execution() {
 				try {
 					myserver.configure_mykey();
 					ok=true;
-				} UI_CATCH("Loading your key");
+				} catch UI_CATCH("Loading your key");
 
 				if (!ok) {
 					_fact( "You seem to already have your hash-IP key, but I can not load it." );
@@ -484,8 +523,10 @@ int c_the_program_tunserver::main_execution() {
 					ui::action_info_ok("Your new keys are ready to use.");
 				};
 				UI_EXECUTE_OR_EXIT( step_make_default_keys );
-
 			}
+
+// ^ deprecated ------------------------------------------------------------------
+
 
 			// ------------------------------------------------------------------
 
@@ -541,7 +582,8 @@ int c_the_program_tunserver::main_execution() {
 		_note(mo_file_reader::gettext("L_starting_main_server"));
 		_check(m_myserver_ptr);
 		_goal("My server: calling run");
-		m_myserver_ptr->run(); // <---
+		m_myserver_ptr->run(); // <--- ENTERING THE MAIN LOOP (old loop) ***
+
 		_goal("My server: returned");
 		_note(mo_file_reader::gettext("L_main_server_ended"));
 

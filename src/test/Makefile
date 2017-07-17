@@ -1,6 +1,13 @@
 
-.PHONY: run
+.PHONY: run all
+
+all:
+	( cd ../../build && make )
 
 run:
-	( cd ../../build && make && ./test-debug.elf --gtest_filter=*cable*.* )
+	( cd ../../build && make && ../run-my-unittests './unittests.elf' )
+
+run-all:
+	( cd ../../build && make && ./unittests.elf )
+
 

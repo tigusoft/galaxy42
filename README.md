@@ -11,21 +11,29 @@ This program is not yet ready nor secure, do not use it in this version. It is C
 
 * * *
 
-This program creates an secure connection between 2 computers (like VPN).
+This program creates an secure connection between computers (like VPN).
+ * for now best between 2 computers, in future to mesh any number of computers in large network
  * access e.g. your home laptop from work, or connect servers in LAN easily
  * you get *own virtual IPv6* to which you own the private key so no one can impersonate you or steal your address
  * compatible with all programs that just support IPv6
  * authenticated end-to-end
  * encrypted end-to-end
  * only one of the computers needs to have public Internet IP address (in future none will need)
- * (not yet officially released) option to mesh many computers together
 
-To **use this program** from Command Line, simply:
+Works on: Debian 9 (Stretch) on amd64 is recommended, also other **Linuxes**, **Windows** 7, 8, 10, **Mac OS X**
+- see [doc/support-matrix.txt](doc/support-matrix.txt).
 
-on 1st computer run command: `./tunserver.elf`
+* * *
+
+To **run from sources**, just use menu `./menu` and select install, then build, then run - for supported systems,
+or keep reading.
+
+To **use this program** from Command Line (as regular user, or as root) simply:
+
+  * on 1st computer run command: `./tunserver.elf`
 the program will start and will **print you on screen what is the virtual IP address** that is assigned to it by our program.
 
-on 2nd computer run command: `./tunserver.elf --peer YOURIP:9042-VIRTUALIP1`
+ * on 2nd computer run command: `./tunserver.elf --peer YOURIP:9042-VIRTUALIP1`
 where YOURIP must be the "normal" IP address of 1st computer as seen from 2nd computer, e.g. the Internet address of it,
 and VIRTUALIP1 is the virtual IP that was displayed on 1st computer.
 
@@ -41,6 +49,7 @@ To **build this program from source** we recommend:
   * other Unix systems might work - see [doc/build-other-unix.md](doc/build-other-unix.md)
   * Browse directory with more documentation: [doc/](doc/)
   * *advanced users:* to recreate **yourself** the **official binary** for Windows/Linux using **Gitian** deterministic-builds, see [doc/build-gitian.md](doc/build-gitian.md)
+
 
 Backup: your **private keys** that give ownership of your virtual IP address by default are in `~/.config/antinet/`
 (or just the `galaxy42/wallet` there).
@@ -58,7 +67,7 @@ For more details, including correct naming and **glossary**, and advanced techni
   * Run program with --newloop to get the refactored behaviour
   * First, **all existing functions are disabled** in this mode --newloop
   * --newloop option itself is recognized
-  * --peer option can be given but is ignored
+  * --peer option can be given and it is partially parsed (new peer format!)
 
 Older release notes are in [Changelog.md](Changelog.md).
 
@@ -74,14 +83,21 @@ also check if other people confirm same checksum of binary files, and you can al
 that it matches given source code (see below - "Security of binary install").
 
 * Using pre-built binary on **Windows**:
-you need to have TUN/TAP Driver installed first, e.g. get one from the OpenVPN project.
+you need to have TUN/TAP Driver installed first, e.g. get one from the [OpenVPN](https://github.com/yedino/galaxy42/blob/master/doc/msvc-instructions.md#create-tuntap-device) project.
+
 * Get the installer .exe, run it.
 * Results:
   * Program is in: Program files/galaxy42/tunserver.elf.exe
   * Program will be installed as service and will run on boot.
 * You can start program manually e.g. to specify command-line options:
-  * Disable the system service of Galaxy42
-  * Run the installed .exe program manually. It will work and you can specify --peer option ... as well as see own virtual IPv6 there.
+  * Disable the system service of Galaxy42 - e.g. by going to Task Manager, finding Services tab, finding there "Galaxy" service, and clicking to Stop/Disable it.
+  * Run the installed .exe program manually. It will work and you can specify --peer option ... as well as see own virtual IPv6 there. It MUST be run as ADMINISTRATOR (click Menu Start, find cmd, right-click and choose option 'Run as administrator')
+
+* HANDLE ERRORS:
+    * If problem finding the tuntap in registry:
+  We can not find the virtual tuntap network card. Did you installed the OpenVPN driver for it? Is it not disabled? Consult README.md for more infomation.
+    * If problem setting unicast address etc - then show suggestinon like
+  We can not configure the virtual card - are you running this program with Administrator privileges (e.g. from run-as-administrator command line? or with System privilages as Service?) Consult README.md for more infomation.
 
 * Using pre-built binary on **Linux**:
 * Get the installer .tar.gz and unpack it.
@@ -94,12 +110,21 @@ you need to have TUN/TAP Driver installed first, e.g. get one from the OpenVPN p
 
 ## Security:
 
+* we drop root UID if run via sudo (see SudoCap below)
+* we use Capability and drop when possible, if using setcap (see SudoCap below)
+
+Planned:
+
+* code review - NOT yet
+* seccomp filter - NOT yet
+* separate process for network, with no filesystem access - NOT yet
+
 The source code is NOT yet reviewed, expect it to have bugs and exploits. For now we recommend to use it only in isolated VM
 or better yet on a separated test computer.
 
 When you build program from source, check the file [SECURITY.txt] for list of dependencies that you MUST monitor for security updates!
 
-### Security of binary install:
+### Security of binary download/install:
 
 We offer binary builds on web page:
 
@@ -123,7 +148,7 @@ then you must somehow provide identical version of the packages, otherwise it co
 
 Not implemented yet.
 
-### Security of source code:
+### Security and verificatin of source code:
 
 You can confirm that source code is indeed created by the developers - git tags are signed, and after them (e.g. on some work in progress branch)
 all following git commits (including git merges) are also signed.
@@ -152,9 +177,44 @@ Script that can help speed up this process is being written, e.g. one good versi
 
 ### Organizations and projects
 
-Galaxy42 - the main network routing.
-Antinet - the research project including Galaxy42, simulations for it, tokens for it, and everything else.
-Yedino - the bigger entity that manages creation of this projects and controlls most of copyrights and official issues.
+* Galaxy42 - the main network routing.
+* Antinet - the research project including Galaxy42, simulations for it, tokens for it, and everything else.
+* Yedino - the bigger entity that manages creation of this projects and controlls most of copyrights and official issues.
+
+### Advanced use
+
+#### Sudo/Cap on Linux
+
+Program can be given higher privileges on start in various ways, on Linux.
+
+* recommended way is to just start program and it will work thanks to setcap (part of our make, if you installed our scripts from ./install)
+* or else, if you do not have setcap, then just sudo the program with command as below
+
+| Method name | You are user...         | ... and run command:              | If binary is setcap               | If binary is SUID           | Then config directory will be used | Then tuntap works?| Good idea?               |
+| ---         | ---                     | ---                               | ---                               | ---                         | ---                                | ---               | ---                      |
+| user+setcap | alice                   | ./tunserver.elf                   | if yes                            | if no                       | /home/alice/.config/               | tuntap OK         | Yes, recommended         |
+| user+setcap | alice                   | HOME="$HOME/profile1/" ./tunserver.elf | if yes                            | if no                       | /home/alice/.config/               | tuntap OK         | Yes, recommended         |
+| user+sudo   | alice                   | ./tunserver.elf | if NO                             | if no                       | /home/alice/.config/               | tuntap OK         | Yes, if you can't use file setcap |
+| user+sudo   | alice                   | sudo HOME="$HOME/profile1/" ./tunserver.elf --home-env | if NO                             | if no                       | /home/alice/profile1/.config/               | tuntap OK         | Yes, if you can't use file setcap |
+| root+etc    | root                    | ./tunserver.elf --root-mode | (any)             | if no                 | /etc/                              | tuntap OK         | Yes, daemons starting from root. Will read files from /etc/ and then drop to given user. TODO NOT YET IMPLEMENTED |
+| (NO!)       | root                    | ./tunserver.elf             | (any)             | if no                 | /etc/                              | tuntap OK         | **No!** program will abort; or try to drop out to user who gained this root (e.g. from sudo su) |
+| (NO!)       | alice                   | sudo HOME="$HOME" ./tunserver.elf | if yes                            | if no                       | /home/alice/.config/               | tuntap OK         | Allowed; but sudo not needed   |
+| (NO!)       | root                    | ./tunserver.elf                   | (any)                             | if no                       | /root/.config/                     | tuntap OK         | **No!** NOT SECURE |
+| (NO!)       | alice                   | sudo              ./tunserver.elf | (any)                             | if no                       | /root/.config/                     | tuntap OK         | **No!** no access to root files |
+
+Other combinations (of this conditions, exporting env HOME, etc) are not supported currently.
+
+Config file actually used can be this path plus "/antinet/", e.g. "/home/alice/.config/antinet/".
+
+Possible user transitions:
+```
+alice                 ---> OUR PROGRAM (with cap)             ---> READ FILES (HOME=alice, user=alice)
+alice ---sudo--> root ---> OUR PROGRAM ---drop sudo---> alice ---> READ FILES (HOME=root! , user=alice)
+alice ---sudo--> root ---> OUR PROGRAM ---drop SUID---> alice ---> READ FILES (HOME=root! , user=alice) ---???---> nobody [TODO] (saved uid?)
+                 ^--- user_program_start                ^--- user_normal                                           ^--- user_mainloop
+```
+
+
 
 * * *
 * * *
@@ -311,8 +371,3 @@ A: Do an `make clean` and try again. They can show up when you run more then onc
 That option is intended for use by automated tools only, and they start in clearn environment.
 You can also try: `find . -name "*.gcda" -print0 | xargs -0 rm`.
 See: http://stackoverflow.com/questions/22519530/dozens-of-profilinginvalid-arc-tag-when-running-code-coverage-in-xcode-5
-
-
-
-
-

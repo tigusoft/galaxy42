@@ -22,10 +22,11 @@ TEST(datastore, prepare_path) {
 	b_fs::path PRV_full = datastore::prepare_path_for_write(e_datastore_galaxy_wallet_PRV, "bannedname!_key", true);
 	_dbg2(PRV_full);
 
+	datastore::save_string(e_datastore_galaxy_wallet_PRV, "bannedname!_key", "priv data01", true);
 	// try to overvrite path for PRV key
 	EXPECT_THROW({
 		b_fs::path PRV_full = datastore::prepare_path_for_write(e_datastore_galaxy_wallet_PRV, "bannedname!_key");
-	},overwrite_error);
+	}, overwrite_error);
 
 	// removing
 	ASSERT_TRUE(datastore::remove(PRV_full.string()));
@@ -64,17 +65,18 @@ TEST(datastore, load_nonexistent) {
 	// string
 	EXPECT_THROW({
 		datastore::load_string(e_datastore_galaxy_instalation_key_conf, non_existent_file);
-	}, std::invalid_argument);
+	},  expected_not_found);
 	// strin mlocked
 	EXPECT_THROW({
 		datastore::load_string_mlocked(e_datastore_galaxy_instalation_key_conf, non_existent_file);
-	}, std::invalid_argument);
+	},  expected_not_found);
 }
 
 TEST(datastore, bad_file_confdir) {
 
 	std::string test_conf_name = "test_non_important_conffile.configuration";
 	b_fs::path parent_dirname  = datastore::get_parent_path(e_datastore_galaxy_instalation_key_conf, test_conf_name);
+	datastore::create_parent_dir(parent_dirname);
 
 	// trying to open directory
 	ASSERT_FALSE(datastore::is_file_ok(parent_dirname.string()));

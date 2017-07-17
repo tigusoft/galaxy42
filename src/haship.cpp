@@ -12,7 +12,9 @@
 // c_haship_addr :
 c_haship_addr::c_haship_addr()
 	 : std::array<unsigned char, g_haship_addr_size>({{}})
-{ }
+{
+	fill(0);
+}
 
 c_haship_addr::c_haship_addr(tag_constr_by_hash_of_pubkey, const c_haship_pubkey & pubkey)
 	 : std::array<unsigned char, g_haship_addr_size>({{}})
@@ -24,7 +26,7 @@ c_haship_addr::c_haship_addr(tag_constr_by_hash_of_pubkey, const c_haship_pubkey
 }
 
 c_haship_addr::c_haship_addr(tag_constr_by_addr_dot, const t_ipv6dot & addr_string) {
-	_dbg1("******************PARSING IP: addr_string " << addr_string);
+	_dbg3("parsing ip addr_string=" << addr_string);
 	// use boost asio for parsing
 	boost::asio::ip::address_v6 asio_addr_v6;
 	try {
@@ -38,8 +40,8 @@ c_haship_addr::c_haship_addr(tag_constr_by_addr_dot, const t_ipv6dot & addr_stri
 	} catch (boost::exception &err) {
 		_throw_error(std::invalid_argument("The IP address looks invalid ["+addr_string+"]"));
 	}
-	_dbg1("Parsed string addr :" << asio_addr_v6.to_string());
-	_dbg1("Parsed bytes addr  :" << *this);
+	_dbg4("Parsed string addr=" << asio_addr_v6.to_string());
+	_dbg4("Parsed bytes addr=" << *this);
 }
 
 c_haship_addr::c_haship_addr(tag_constr_by_addr_bin, const t_ipv6bin & data ) {
@@ -48,6 +50,11 @@ c_haship_addr::c_haship_addr(tag_constr_by_addr_bin, const t_ipv6bin & data ) {
 		_throw_error( std::runtime_error(oss.str()) );
 	}
 	for (size_t i=0; i<this->size(); ++i) this->at(i) = data.at(i);
+}
+
+c_haship_addr::c_haship_addr(tag_constr_by_array_uchar, const std::array<unsigned char, g_haship_addr_size> & data) {
+	_check_abort(data.size() == this->size());
+	std::copy(data.begin(), data.end(), this->begin());
 }
 
 void c_haship_addr::print(ostream &ostr) const {
@@ -65,6 +72,18 @@ string c_haship_addr::get_hip_as_string(bool with_dots) const{
         out << *it;
     }
     return out.str();
+}
+
+bool c_haship_addr::is_empty() const {
+	for (auto & byte : *this)
+		if (byte != 0) return false;
+	return true;
+}
+
+c_haship_addr c_haship_addr::make_empty() {
+	c_haship_addr ret;
+	ret.fill(0);
+	return ret;
 }
 ostream& operator<<(ostream &ostr, const c_haship_addr & v) {	v.print(ostr);	return ostr; }
 
